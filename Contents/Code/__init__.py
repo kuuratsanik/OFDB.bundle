@@ -54,12 +54,10 @@ class OFDBAgent(Agent.Movies):
         # Rating
         metadata.rating = None
         if Prefs['rating']:
-          rating = re.findall('<br>Note: ([0-9]+\.[0-9]+) &nbsp', movie_page)
-          votes = re.findall('&nbsp;Stimmen: ([0-9]+) &nbsp', movie_page)
+          rating = re.findall('<span itemprop="ratingValue">([\d\.]+)<\/span>', movie_page)
 
-          if len(rating) > 0 and len(votes) > 0:
-            if votes > 3:
-              metadata.rating = float(rating[0])
+          if len(rating) > 0:
+            metadata.rating = float(rating[0])
 
         # Summary
         metadata.summary = ''
