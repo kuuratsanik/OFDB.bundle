@@ -38,8 +38,7 @@ class OFDBAgent(Agent.Movies):
           title = re.findall('<font face="Arial,Helvetica,sans-serif" size="3"><b>([^<]+)</b></font>', movie_page)
 
         if len(title) > 0:
-          metadata.title = metadata.title = re.sub(r"(.*), (A|Die|Der|Das|Ein|The)$", r"\2 \1", title[0])
-
+          metadata.title = re.sub(r"(.*), (A|Die|Der|Das|Eine?|The|Les?|La|Los|El)", r"\2 \1", title[0])
 
         # Genre(s)
         metadata.genres.clear()
