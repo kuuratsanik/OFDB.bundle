@@ -5,13 +5,13 @@
 
 import re
 
-OFDB_SEARCH_URL = 'http://www.ofdb.de/view.php?page=suchergebnis&Kat=IMDb&SText=%s'
-OFDB_MOVIE_URL = 'http://www.ofdb.de/film/%s'
-OFDB_PLOT_URL = 'http://www.ofdb.de/plot/%s'
+OFDB_BASE_URL = 'http://www.ofdb.de'
+OFDB_SEARCH_URL = '%s/view.php?page=suchergebnis&Kat=IMDb&SText=%%s' % (OFDB_BASE_URL)
+OFDB_MOVIE_URL = '%s/film/%%s' % (OFDB_BASE_URL)
+OFDB_PLOT_URL = '%s/plot/%%s' % (OFDB_BASE_URL)
 
 def Start():
-  HTTP.CacheTime = CACHE_1DAY
-  HTTP.Headers['User-Agent'] = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.8; rv:15.0) Gecko/20100101 Firefox/15.0.1'
+  HTTP.Headers['User-Agent'] = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10.11; rv:50.0) Gecko/20100101 Firefox/50.0'
 
 class OFDBAgent(Agent.Movies):
   name = 'OFDB'
@@ -26,11 +26,11 @@ class OFDBAgent(Agent.Movies):
   def update(self, metadata, media, lang):
     # Only use data from OFDB if the user has set the language for this section to German (Deutsch)
     if lang == 'de':
-      search_result = HTTP.Request(OFDB_SEARCH_URL % (metadata.id), sleep=1.0).content
+      search_result = HTTP.Request(OFDB_SEARCH_URL % (metadata.id), sleep=1.0, cacheTime=CACHE_1WEEK).content
       ofdb_id = re.findall('href="film/([^"/]+)', search_result)
 
       if len(ofdb_id) > 0:
-        movie_page = HTTP.Request(OFDB_MOVIE_URL % (ofdb_id[0]), sleep=1.0).content
+        movie_page = HTTP.Request(OFDB_MOVIE_URL % (ofdb_id[0]), sleep=1.0, cacheTime=CACHE_1MONTH).content
 
         # Title
         metadata.title = '';
@@ -64,7 +64,7 @@ class OFDBAgent(Agent.Movies):
           plot_url = re.findall('href="plot/([^"/]+)', movie_page)
 
           if len(plot_url) > 0:
-            plot_page = HTTP.Request(OFDB_PLOT_URL % (plot_url[0]), sleep=1.0).content
+            plot_page = HTTP.Request(OFDB_PLOT_URL % (plot_url[0]), sleep=1.0, cacheTime=CACHE_1MONTH).content
             plot_text = re.findall('gelesen</b></b><br><br>(.*?)</font></p>', plot_page, re.DOTALL)
 
             if len(plot_text) > 0:
@@ -79,7 +79,18 @@ class OFDBAgent(Agent.Movies):
         # Content rating
         metadata.content_rating = ''
         if Prefs['content_rating']:
-          content_rating = re.findall('Freigabe: FSK.+?(o\.A\.|6|12|16|18)"', movie_page)
+          content_rating = re.findall('Freigabe: FSK.+?(o\.A\.|6|12|16|18)', movie_page)
+
+          # Check versions of the movie to find FSK if the content rating is missing on the main page
+          if len(content_rating) < 1:
+            versions = re.findall('view\.php\?page=fassung&fid=\d+&vid=\d+', movie_page)
+
+            for version in versions:
+              version_page = HTTP.Request('%s/%s' % (OFDB_BASE_URL, version), sleep=1.0, cacheTime=CACHE_1MONTH).content
+              content_rating = re.findall('Freigabe: FSK.+?(o\.A\.|6|12|16|18)', version_page)
+
+              if len(content_rating) > 0:
+                break
 
           if len(content_rating) > 0:
             if content_rating[0] == 'o.A.':
